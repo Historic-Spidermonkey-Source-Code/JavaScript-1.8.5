@@ -71,8 +71,15 @@ ifdef ENABLE_TESTS
 DIRS += tests
 endif
 
+SRCREL_VERSION      = 1.0.0
+SRCREL_ABI_VERSION  := $(word 1,$(subst ., ,$(SRCREL_VERSION))).$(word 2,$(subst ., ,$(SRCREL_VERSION)))
+
 MODULE		    = js
-LIBRARY_NAME	    = mozjs
+ifeq (,$(HOST_BIN_SUFFIX))
+LIBRARY_NAME	    = mozjs185
+else
+LIBRARY_NAME	    = mozjs185-$(SRCREL_ABI_VERSION)
+endif
 STATIC_LIBRARY_NAME = js_static
 GRE_MODULE	    = 1
 
@@ -831,12 +838,36 @@ install:: $(INSTALLED_HEADERS)
 install:: $(SCRIPTS)
 	$(SYSINSTALL) $^ $(DESTDIR)$(bindir)
 
+ifeq (,$(HOST_BIN_SUFFIX))
+ifeq (.dylib,$(DLL_SUFFIX))
+# Mac OS X
+install:: SHLIB_ANY_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY)
+install:: SHLIB_ABI_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY:$(DLL_SUFFIX)=.$(SRCREL_ABI_VERSION)$(DLL_SUFFIX))
+install:: SHLIB_EXACT_VER := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY:$(DLL_SUFFIX)=.$(SRCREL_VERSION)$(DLL_SUFFIX))
+else
+# Generic Unix / Linux
+install:: SHLIB_ANY_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY)
+install:: SHLIB_ABI_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY).$(SRCREL_ABI_VERSION)
+install:: SHLIB_EXACT_VER := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY).$(SRCREL_VERSION)
+endif
+endif
+
 install:: $(LIBRARY) $(SHARED_LIBRARY) $(IMPORT_LIBRARY)
 ifneq (,$(LIBRARY))
 	$(SYSINSTALL) $(LIBRARY) $(DESTDIR)$(libdir)
+	mv -f $(DESTDIR)$(libdir)/$(LIBRARY) $(subst $(STATIC_LIBRARY_NAME),mozjs185-$(SRCREL_ABI_VERSION),$(DESTDIR)$(libdir)/$(LIBRARY))
 endif
 ifneq (,$(SHARED_LIBRARY))
+ifeq (,$(HOST_BIN_SUFFIX))
+	@[ ! -h $(SHLIB_ANY_VER) ] || rm -f $(SHLIB_ANY_VER)
+endif
 	$(SYSINSTALL) $(SHARED_LIBRARY) $(DESTDIR)$(libdir)
+ifeq (,$(HOST_BIN_SUFFIX))
+	mv -f $(SHLIB_ANY_VER) $(SHLIB_EXACT_VER)
+	@[ ! -h $(SHLIB_ABI_VER) ] || rm -f $(SHLIB_ABI_VER)
+	ln -s $(SHLIB_EXACT_VER) $(SHLIB_ABI_VER)
+	ln -s $(SHLIB_ABI_VER) $(SHLIB_ANY_VER)
+endif
 endif
 ifneq (,$(IMPORT_LIBRARY))
 	$(SYSINSTALL) $(IMPORT_LIBRARY) $(DESTDIR)$(libdir)
