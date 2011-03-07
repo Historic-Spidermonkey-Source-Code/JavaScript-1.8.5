@@ -42,7 +42,7 @@ libmoz185.js.so.1.0 when building the install target.
 
 Most embeddings building on Unix or Linux should link against libmozjs185.so.1.0.
 
-The static library has not been renamed, and re libjs_static.a to libmozjs185-1.0.a.
+The static library has been renamed, from libjs_static.a to libmozjs185-1.0.a.
 
 Mac OS X
 --------
