@@ -17,6 +17,8 @@ This standalone release introduces a new, experimental, naming convention for th
 shared library.  This naming convention will not be rolled back into the mainline Mozilla source
 tree, however the relevant patches are included with this distribution.
 
+Note: Please copy wes@page.ca on bugs related to packaging this standalone release.
+
 Linux and non-Mac OS X Unices
 -----------------------------
 Previous releases and the master source repositories build a shared library named libmozjs.so. In
