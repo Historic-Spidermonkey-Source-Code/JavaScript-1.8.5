@@ -801,6 +801,7 @@ endif
 # - OS_LIBS includes libraries selected by the configure script.
 # - EXTRA_LIBS includes libraries selected by this Makefile.
 JS_CONFIG_LIBS=$(EXTRA_DSO_LDOPTS) $(OS_LIBS) $(EXTRA_LIBS) 
+JS_CONFIG_MOZ_JS_LIBS=-L$(libdir) -l$(LIBRARY_NAME)
 
 # The configure script invokes this rule explicitly at configure time!
 # It's important that js-config be ready by the time we're done
@@ -826,7 +827,7 @@ js-config: js-config.in Makefile $(DEPTH)/config/autoconf.mk $(topsrcdir)/config
 	-e 's|$(at)LIBRARY_NAME$(at)|$(LIBRARY_NAME)|' \
 	-e 's|$(at)NSPR_CFLAGS$(at)|$(NSPR_CFLAGS)|' \
 	-e 's|$(at)JS_CONFIG_LIBS$(at)|$(JS_CONFIG_LIBS)|' \
-	-e 's|$(at)MOZ_JS_LIBS$(at)|$(MOZ_JS_LIBS)|' \
+	-e 's|$(at)MOZ_JS_LIBS$(at)|$(JS_CONFIG_MOZ_JS_LIBS)|' \
 	&& mv js-config.tmp $@ && chmod +x $@
 
 SCRIPTS = js-config
