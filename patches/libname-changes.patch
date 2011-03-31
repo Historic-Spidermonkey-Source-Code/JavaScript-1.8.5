@@ -1,7 +1,7 @@
 diff --git a/README b/README
 --- a/README
 +++ b/README
-@@ -1,7 +1,57 @@
+@@ -1,7 +1,59 @@
  1.  The latest release notes for SpiderMonkey can be found at:
  
        https://developer.mozilla.org/En/SpiderMonkey/1.8.5
@@ -20,6 +20,8 @@ diff --git a/README b/README
 +This standalone release introduces a new, experimental, naming convention for the SpiderMonkey
 +shared library.  This naming convention will not be rolled back into the mainline Mozilla source
 +tree, however the relevant patches are included with this distribution.
++
++Note: Please copy wes@page.ca on bugs related to packaging this standalone release.
 +
 +Linux and non-Mac OS X Unices
 +-----------------------------
@@ -46,7 +48,7 @@ diff --git a/README b/README
 +
 +Most embeddings building on Unix or Linux should link against libmozjs185.so.1.0.
 +
-+The static library has not been renamed, and re libjs_static.a to libmozjs185-1.0.a.
++The static library has been renamed, from libjs_static.a to libmozjs185-1.0.a.
 +
 +Mac OS X
 +--------
@@ -89,9 +91,58 @@ diff --git a/js/src/Makefile.in b/js/src/Makefile.in
  ifdef GNU_CXX
  ifdef INTEL_CXX
  # icc gets special optimize flags
-@@ -826,22 +833,46 @@ SCRIPTS = js-config
+@@ -789,16 +796,17 @@ endif
+ 
+ # Compute the linker flags that programs linking against SpiderMonkey should
+ # pass to get SpiderMonkey and its dependencies, beyond just the -L and -l
+ # for the SpiderMonkey library itself.
+ # - EXTRA_DSO_LDOPTS includes the NSPR -L and -l flags.
+ # - OS_LIBS includes libraries selected by the configure script.
+ # - EXTRA_LIBS includes libraries selected by this Makefile.
+ JS_CONFIG_LIBS=$(EXTRA_DSO_LDOPTS) $(OS_LIBS) $(EXTRA_LIBS) 
++JS_CONFIG_MOZ_JS_LIBS=-L$(libdir) -l$(LIBRARY_NAME)
+ 
+ # The configure script invokes this rule explicitly at configure time!
+ # It's important that js-config be ready by the time we're done
+ # configuring, because we may be running other configure scripts that
+ # would like to run js-config themselves, before js is built.
+ #
+ # This file and rules.mk go through a certain amount of work to decide
+ # which libraries to build, what to name them, and what flags to pass
+@@ -814,34 +822,80 @@ js-config: js-config.in Makefile $(DEPTH
+ 	-e 's|$(at)prefix$(at)|$(prefix)|' \
+ 	-e 's|$(at)exec_prefix$(at)|$(exec_prefix)|' \
+ 	-e 's|$(at)includedir$(at)|$(includedir)|' \
+ 	-e 's|$(at)libdir$(at)|$(libdir)|' \
+ 	-e 's|$(at)MOZILLA_VERSION$(at)|$(MOZILLA_VERSION)|' \
+ 	-e 's|$(at)LIBRARY_NAME$(at)|$(LIBRARY_NAME)|' \
+ 	-e 's|$(at)NSPR_CFLAGS$(at)|$(NSPR_CFLAGS)|' \
+ 	-e 's|$(at)JS_CONFIG_LIBS$(at)|$(JS_CONFIG_LIBS)|' \
+-	-e 's|$(at)MOZ_JS_LIBS$(at)|$(MOZ_JS_LIBS)|' \
++	-e 's|$(at)MOZ_JS_LIBS$(at)|$(JS_CONFIG_MOZ_JS_LIBS)|' \
+ 	&& mv js-config.tmp $@ && chmod +x $@
+ 
+ SCRIPTS = js-config
  SDK_BINARY = js-config
  
++pkg_config_files = \
++	mozjs185.pc \
++	$(NULL)
++
++GARBAGE += $(pkg_config_files)
++
++%.pc: $(srcdir)/%.pc.in Makefile
++	cat $< | sed \
++	-e "s|%prefix%|$(prefix)|" \
++	-e "s|%includedir%|$(includedir)|" \
++	-e "s|%libdir%|$(libdir)|" \
++	-e 's|%MOZILLA_VERSION%|$(MOZILLA_VERSION)|' \
++	> $@ && chmod 644 $@
++
++install:: $(pkg_config_files)
++	@echo pkg_config_file: $(pkg_config_files)
++	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(libdir)/pkgconfig
++
  install:: $(INSTALLED_HEADERS)
  	$(SYSINSTALL) $^ $(DESTDIR)$(includedir)/$(MODULE)
  
@@ -101,14 +152,18 @@ diff --git a/js/src/Makefile.in b/js/src/Makefile.in
 +ifeq (,$(HOST_BIN_SUFFIX))
 +ifeq (.dylib,$(DLL_SUFFIX))
 +# Mac OS X
-+install:: SHLIB_ANY_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY)
-+install:: SHLIB_ABI_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY:$(DLL_SUFFIX)=.$(SRCREL_ABI_VERSION)$(DLL_SUFFIX))
-+install:: SHLIB_EXACT_VER := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY:$(DLL_SUFFIX)=.$(SRCREL_VERSION)$(DLL_SUFFIX))
++SHLIB_ANY_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY)
++SHLIB_ABI_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY:$(DLL_SUFFIX)=.$(SRCREL_ABI_VERSION)$(DLL_SUFFIX))
++SHLIB_EXACT_VER := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY:$(DLL_SUFFIX)=.$(SRCREL_VERSION)$(DLL_SUFFIX))
++$(SHARED_LIBRARY): EXTRA_DSO_LDOPTS += -install_name $(SHLIB_ABI_VER)
++$(SHARED_LIBRARY): EXTRA_DSO_LDOPTS += -current_version $(SRCREL_VERSION)
++$(SHARED_LIBRARY): EXTRA_DSO_LDOPTS += -compatibility_version $(SRCREL_ABI_VERSION)
 +else
 +# Generic Unix / Linux
-+install:: SHLIB_ANY_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY)
-+install:: SHLIB_ABI_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY).$(SRCREL_ABI_VERSION)
-+install:: SHLIB_EXACT_VER := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY).$(SRCREL_VERSION)
++SHLIB_ANY_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY)
++SHLIB_ABI_VER   := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY).$(SRCREL_ABI_VERSION)
++SHLIB_EXACT_VER := $(DESTDIR)$(libdir)/$(SHARED_LIBRARY).$(SRCREL_VERSION)
++$(SHARED_LIBRARY): EXTRA_DSO_LDOPTS += -Wl,-soname,$(notdir $(SHLIB_ABI_VER))
 +endif
 +endif
 +
@@ -136,3 +191,18 @@ diff --git a/js/src/Makefile.in b/js/src/Makefile.in
  # Extra dependancies and rules for auto-generated headers
  host_jskwgen.$(OBJ_SUFFIX): jsversion.h jskeyword.tbl
  
+diff --git a/js/src/mozjs185.pc.in b/js/src/mozjs185.pc.in
+new file mode 100644
+--- /dev/null
++++ b/js/src/mozjs185.pc.in
+@@ -0,0 +1,10 @@
++prefix=%prefix%
++libdir=%libdir%
++includedir=%includedir%
++
++Name: SpiderMonkey 1.8.5
++Description: The Mozilla library for JavaScript 1.8.5
++Version: %MOZILLA_VERSION%
++Requires: nspr >= 4.7
++Libs: -L${libdir} -lmozjs185
++Cflags: -I${includedir}/js

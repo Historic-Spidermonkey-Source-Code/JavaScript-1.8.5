@@ -11,7 +11,7 @@ diff --git a/js/src/jsapi.cpp b/js/src/jsapi.cpp
  JS_GetImplementationVersion(void)
  {
 -    return "JavaScript-C 1.8.0 pre-release 1 2007-10-03";
-+    return "JavaScript-C 1.8.5 2011-03-24";
++    return "JavaScript-C 1.8.5 2011-03-31";
  }
  
  JS_PUBLIC_API(JSCompartmentCallback)
